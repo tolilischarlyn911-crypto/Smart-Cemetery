@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/custom_button.dart';
 import 'main_navigation_wrapper.dart';
 import 'signup_screen.dart';
@@ -47,7 +49,17 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (navContext) => MainNavigationWrapper(
               user: user,
               onLogout: () async {
-                await _authService.logout();
+                try {
+                  await _authService.logout();
+                } catch (e) {
+                  if (!navContext.mounted) return;
+                  showAppSnackBar(
+                    navContext,
+                    e.toString().replaceFirst('Exception: ', ''),
+                    isError: true,
+                  );
+                  return;
+                }
                 if (!navContext.mounted) return;
                 Navigator.pushAndRemoveUntil(
                   navContext,
@@ -61,10 +73,10 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-          ),
+        showAppSnackBar(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          isError: true,
         );
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -92,10 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   const Text(
                     'Welcome Back',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -131,17 +140,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 28),
                   _isLoading
                       ? const CircularProgressIndicator(
-                          color: Color(0xFF1B4D2E))
-                      : CustomButton(
-                          text: 'LOGIN',
-                          onPressed: _handleLogin,
-                        ),
+                          color: Color(0xFF1B4D2E),
+                        )
+                      : CustomButton(text: 'LOGIN', onPressed: _handleLogin),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("Don't have an account? ",
-                          style: TextStyle(color: Colors.grey[600])),
+                      Text(
+                        "Don't have an account? ",
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(

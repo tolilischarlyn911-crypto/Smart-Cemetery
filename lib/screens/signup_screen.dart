@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
 
@@ -33,12 +35,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Please login.'),
-            backgroundColor: Color(0xFF1B4D2E),
-          ),
-        );
+        showAppSnackBar(context, 'Account created successfully! Please login.');
 
         Navigator.pushReplacement(
           context,
@@ -47,11 +44,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       } catch (e) {
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
+        showAppSnackBar(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          isError: true,
         );
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -99,10 +95,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 28),
                 _isLoading
                     ? const CircularProgressIndicator(color: Color(0xFF1B4D2E))
-                    : CustomButton(
-                        text: 'SIGN UP',
-                        onPressed: _handleSignUp,
-                      ),
+                    : CustomButton(text: 'SIGN UP', onPressed: _handleSignUp),
               ],
             ),
           ),
