@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/auth_service.dart';
-import '../widgets/auth_text_field.dart';
-import '../widgets/custom_button.dart';
-import 'main_navigation_wrapper.dart';
+import 'home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,13 +11,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _authService = AuthService();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  bool _isObscured = true;
-  bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -29,140 +23,176 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  void _handleLogin() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-      try {
-        final UserModel user = await _authService.login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-
-        if (!mounted) return;
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (navContext) => MainNavigationWrapper(
-              user: user,
-              onLogout: () async {
-                await _authService.logout();
-                if (!navContext.mounted) return;
-                Navigator.pushAndRemoveUntil(
-                  navContext,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
-            ),
-          ),
-          (route) => false,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-          ),
-        );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an email and password'),
+        ),
+      );
+      return;
     }
+
+    final String extractedName =
+        email.contains('@') ? email.split('@').first : email;
+
+    // DITO INILAGAY ANG SAMPLE PHOTO URL:
+    final mockUser = UserModel(
+      uid: 'user_12345',
+      email: email,
+      name: extractedName,
+      photoUrl:
+          'https://i.pravatar.cc/300', // Sample picture para hindi na letrang "T" lang ang lumabas
+    );
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(
+          user: mockUser,
+          onNavigateTab: (tabIndex) {
+            debugPrint('Selected tab index: $tabIndex');
+          },
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F6F3),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.account_circle,
-                    size: 80,
-                    color: Color(0xFF1B4D2E),
+      backgroundColor: const Color(0xFFF4F6F4),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 450),
+            padding: const EdgeInsets.all(32.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircleAvatar(
+                  radius: 36,
+                  backgroundColor: Color(0xFF1E4D2B),
+                  child: Icon(
+                    Icons.person,
+                    size: 40,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Welcome Back',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Welcome Back',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Login to access Smart Cemetery services.',
-                    style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Login to access Smart Cemetery services.',
+                  style: TextStyle(
+                    color: Colors.grey,
                   ),
-                  const SizedBox(height: 32),
-                  AuthTextField(
-                    controller: _emailController,
-                    hintText: 'Email Address',
-                    prefixIcon: Icons.email_outlined,
-                    validator: (val) => val != null && val.contains('@')
-                        ? null
-                        : 'Enter valid email',
+                ),
+                const SizedBox(height: 28),
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.email_outlined),
+                    hintText: 'Email',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 16),
-                  AuthTextField(
-                    controller: _passwordController,
-                    hintText: 'Password',
-                    prefixIcon: Icons.lock_outline,
-                    isPassword: _isObscured,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _isObscured ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                       ),
-                      onPressed: () =>
-                          setState(() => _isObscured = !_isObscured),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
-                    validator: (val) => val != null && val.length >= 6
-                        ? null
-                        : 'Password too short',
+                    hintText: 'Password',
+                    border: const OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 28),
-                  _isLoading
-                      ? const CircularProgressIndicator(
-                          color: Color(0xFF1B4D2E))
-                      : CustomButton(
-                          text: 'LOGIN',
-                          onPressed: _handleLogin,
-                        ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Don't have an account? ",
-                          style: TextStyle(color: Colors.grey[600])),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SignUpScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Register',
-                          style: TextStyle(
-                            color: Color(0xFF1B4D2E),
-                            fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E4D2B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: _handleLogin,
+                    child: const Text(
+                      'LOGIN',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignUpScreen(),
                           ),
+                        );
+                      },
+                      child: const Text(
+                        'SIGN UP',
+                        style: TextStyle(
+                          color: Color(0xFF1E4D2B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
