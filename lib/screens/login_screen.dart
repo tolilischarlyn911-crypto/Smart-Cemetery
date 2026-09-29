@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../models/user_model.dart';
-import 'home_screen.dart';
+import '../services/auth_service.dart';
+import '../widgets/app_snackbar.dart';
+import '../widgets/custom_button.dart';
+import 'main_navigation_wrapper.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final AuthService _authService = AuthService();
+
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -23,42 +30,79 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an email and password'),
-        ),
+      showAppSnackBar(
+        context,
+        'Please enter an email and password.',
+        isError: true,
       );
       return;
     }
 
-    final String extractedName =
-        email.contains('@') ? email.split('@').first : email;
+    setState(() {
+      _isLoading = true;
+    });
 
-    // DITO INILAGAY ANG SAMPLE PHOTO URL:
-    final mockUser = UserModel(
-      uid: 'user_12345',
-      email: email,
-      name: extractedName,
-      photoUrl:
-          'https://i.pravatar.cc/300', // Sample picture para hindi na letrang "T" lang ang lumabas
-    );
+    try {
+      final UserModel user = await _authService.login(
+        email: email,
+        password: password,
+      );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomeScreen(
-          user: mockUser,
-          onNavigateTab: (tabIndex) {
-            debugPrint('Selected tab index: $tabIndex');
-          },
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (navContext) => MainNavigationWrapper(
+            user: user,
+            onLogout: () async {
+              try {
+                await _authService.logout();
+              } catch (e) {
+                if (!navContext.mounted) return;
+
+                showAppSnackBar(
+                  navContext,
+                  e.toString().replaceFirst('Exception: ', ''),
+                  isError: true,
+                );
+                return;
+              }
+
+              if (!navContext.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                navContext,
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                ),
+                (route) => false,
+              );
+            },
+          ),
         ),
-      ),
-    );
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      showAppSnackBar(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -69,7 +113,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 450),
+            constraints: const BoxConstraints(
+              maxWidth: 450,
+            ),
             padding: const EdgeInsets.all(32.0),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -105,6 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 4),
                 const Text(
                   'Login to access Smart Cemetery services.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.grey,
                   ),
@@ -112,6 +159,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 28),
                 TextField(
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.email_outlined),
                     hintText: 'Email',
@@ -122,6 +171,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    if (!_isLoading) {
+                      _handleLogin();
+                    }
+                  },
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
@@ -140,40 +195,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E4D2B),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 28),
+                _isLoading
+                    ? const CircularProgressIndicator(
+                        color: Color(0xFF1B4D2E),
+                      )
+                    : CustomButton(
+                        text: 'LOGIN',
+                        onPressed: _handleLogin,
                       ),
-                    ),
-                    onPressed: _handleLogin,
-                    child: const Text(
-                      'LOGIN',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Don't have an account? ",
                       style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
+                    GestureDetector(
+                      onTap: () {
+                        if (_isLoading) return;
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -182,11 +226,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                       },
                       child: const Text(
-                        'SIGN UP',
+                        'Register',
                         style: TextStyle(
-                          color: Color(0xFF1E4D2B),
+                          color: Color(0xFF1B4D2E),
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
                         ),
                       ),
                     ),
