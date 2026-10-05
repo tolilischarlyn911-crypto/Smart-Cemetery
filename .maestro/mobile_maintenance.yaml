@@ -1,0 +1,7 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "(?s).*Maintenance.*Request.*"
+- assertVisible: "Request Maintenance"
+- assertVisible: "UPLOAD PHOTO"

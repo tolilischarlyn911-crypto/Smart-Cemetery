@@ -1,0 +1,25 @@
+appId: com.example.capstone_project
+---
+- launchApp:
+    clearState: true
+- tapOn: "LOGIN"
+- tapOn: "Email"
+- inputText: "visitor@demo.test"
+- tapOn: "Password"
+- inputText: "Visitor123!"
+- hideKeyboard
+- tapOn: "LOGIN"
+- assertVisible: "Demo Visitor"
+- tapOn: "Find a Grave"
+- tapOn: "Search by name or location"
+- inputText: "Pedro Dela Cruz"
+- hideKeyboard
+- tapOn: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- assertVisible: "GET DIRECTIONS"
+- tapOn: "Share grave details"
+- assertVisible: "Sharing text"
+- back
+- tapOn: "GET DIRECTIONS"
+- assertVisible: "Map & Navigation"
+- tapOn: "Share grave location"
+- assertVisible: "Sharing text"

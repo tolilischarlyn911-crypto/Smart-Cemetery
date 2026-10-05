@@ -1,0 +1,6 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "Profile\nTab 5 of 5"
+- tapOn: "LOGOUT"
+- assertVisible: "LOGIN"

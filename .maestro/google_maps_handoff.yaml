@@ -1,0 +1,18 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- assertVisible: "Smart Cemetery"
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- assertVisible: "Find a Grave"
+- tapOn: "Find a Grave"
+- assertVisible: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- tapOn: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- assertVisible: "GET DIRECTIONS"
+- tapOn: "GET DIRECTIONS"
+- assertVisible: "Map & Navigation"
+- tapOn: "START NAVIGATION"
+- assertVisible: "Sample grave location"
+- assertVisible: "OPEN GOOGLE MAPS"
+
+- tapOn: "OPEN GOOGLE MAPS"
+- takeScreenshot: .maestro/google_maps_handoff

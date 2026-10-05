@@ -1,0 +1,11 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "Map & Navigation"
+- assertVisible: "Illustrative demo map"
+- assertVisible: "Pedro Dela Cruz"
+- assertVisible: "START NAVIGATION"
+- tapOn: "START NAVIGATION"
+- assertVisible: "Sample grave location"
+- assertVisible: "OPEN GOOGLE MAPS"
+- tapOn: "CANCEL"

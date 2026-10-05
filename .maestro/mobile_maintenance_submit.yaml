@@ -1,0 +1,17 @@
+appId: com.example.capstoneProject
+---
+- launchApp:
+    clearState: true
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "(?s).*Maintenance.*Request.*"
+- tapOn: "(?s).*Choose grave or location.*"
+- tapOn: "Search grave by name or location"
+- inputText: "Pedro Dela Cruz"
+- hideKeyboard
+- tapOn: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- tapOn: "Description"
+- inputText: "The tombstone needs cleaning near the left edge."
+- hideKeyboard
+- tapOn: "SUBMIT REQUEST"
+- assertVisible: "My Requests"
+- assertVisible: "(?s).*Pending.*Medium priority.*"

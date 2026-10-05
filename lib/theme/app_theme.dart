@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   static const Color primaryGreen = Color(0xFF1B4D2E);
@@ -15,6 +16,7 @@ class AppTheme {
       fontFamily: 'Roboto',
       appBarTheme: const AppBarTheme(
         backgroundColor: primaryGreen,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(

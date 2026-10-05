@@ -1,8 +1,8 @@
 const placeholderApiKey = 'dummy-api-key';
 
 const firebaseNotConfiguredMessage =
-    'Firebase is not configured: lib/firebase_options.dart still contains '
-    'placeholder values. Run `flutterfire configure` for your Firebase project.';
+    'Firebase project settings are missing or invalid. Ask the administrator '
+    'to configure this app with the project’s Firebase credentials.';
 
 /// True when [apiKey] / [projectId] are placeholders.
 bool isPlaceholderFirebaseConfig(String apiKey, String projectId) =>

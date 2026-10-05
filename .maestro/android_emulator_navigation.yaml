@@ -1,0 +1,17 @@
+appId: com.example.capstone_project
+---
+- launchApp
+- tapOn: "Find a Grave"
+- tapOn: "Search by name or location"
+- inputText: "Pedro Dela Cruz"
+- hideKeyboard
+- tapOn: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- assertVisible: "GET DIRECTIONS"
+- tapOn: "GET DIRECTIONS"
+- assertVisible: "Map & Navigation"
+- assertVisible: "Pedro Dela Cruz"
+- assertVisible: "START NAVIGATION"
+- tapOn: "START NAVIGATION"
+- assertVisible: "Sample grave location"
+- tapOn: "OPEN GOOGLE MAPS"
+- assertVisible: "1 min"

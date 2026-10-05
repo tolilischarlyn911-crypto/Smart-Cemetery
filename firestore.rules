@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isStaff() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+    function isOperator() {
+      return isAdmin() || isStaff();
+    }
+
+    match /users/{userId} {
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == userId &&
+        request.resource.data.role == 'visitor';
+      allow update: if isAdmin() &&
+        (request.resource.data.role == 'visitor' ||
+         request.resource.data.role == 'staff' ||
+         request.resource.data.role == 'admin') &&
+        (userId != request.auth.uid || request.resource.data.role == 'admin');
+      allow delete: if isAdmin() && userId != request.auth.uid;
+    }
+
+    match /graves/{graveId} {
+      allow read: if signedIn();
+      allow create, update: if isOperator() &&
+        request.resource.data.locationKey is string &&
+        getAfter(/databases/$(database)/documents/graveLocations/$(request.resource.data.locationKey)).data.graveId == graveId;
+      allow delete: if false;
+    }
+
+    match /graveLocations/{key} {
+      allow get: if isOperator();
+      allow list: if false;
+      allow create: if isOperator() &&
+        request.resource.data.graveId is string &&
+        request.resource.data.keys().hasOnly(['graveId']);
+      allow update: if isOperator() &&
+        request.resource.data.graveId == resource.data.graveId &&
+        request.resource.data.keys().hasOnly(['graveId']);
+      allow delete: if isOperator() &&
+        getAfter(/databases/$(database)/documents/graves/$(resource.data.graveId)).data.locationKey != key;
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /maintenance/{requestId} {
+      allow create: if signedIn() &&
+        request.resource.data.requestedBy == request.auth.uid;
+      allow get, list: if isOperator() ||
+        (signedIn() && resource.data.requestedBy == request.auth.uid);
+      allow update: if isAdmin() ||
+        (isStaff() && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'priority']));
+      allow delete: if isAdmin();
+    }
+
+    match /visits/{visitId} {
+      allow create: if signedIn() &&
+        request.resource.data.visitorId == request.auth.uid;
+      allow get, list: if isAdmin() ||
+        (signedIn() && resource.data.visitorId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow get, list: if isAdmin() ||
+        (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /leases/{leaseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5;
+      allow get, list: if isAdmin() ||
+        (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

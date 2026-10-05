@@ -1,0 +1,8 @@
+appId: com.example.capstone_project
+---
+- launchApp
+- tapOn: "Reminders"
+- assertVisible: "(?s).*Phone payment alerts.*"
+- tapOn: "ENABLE"
+- tapOn: "Reminders"
+- assertVisible: "TURN OFF"

@@ -1,13 +1,13 @@
 name: capstone_project
 
-description: "A new Flutter project."
+description: "Smart Cemetery mobile services and web administration."
 
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.13.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -15,10 +15,29 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   image_picker: ^1.1.2
+  image: ^4.10.1
+  qr_flutter: ^4.1.0
+  file_saver: ^0.6.0
+  file_selector: ^1.1.0
+  cryptography: ^2.9.0
+  crypto: ^3.0.7
+  flutter_local_notifications: ^22.3.1
+  flutter_timezone: ^5.1.0
+  timezone: ^0.11.1
+  shared_preferences: ^2.5.5
+  mobile_scanner: ^7.4.2
 
   # Firebase
-  firebase_core: ^3.15.2
-  firebase_auth: ^5.7.0
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.0
+  cloud_firestore: ^6.10.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.1
+  url_launcher: ^6.3.3
+  firebase_storage: ^13.6.0
+  google_maps_flutter: ^2.18.2
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -30,4 +49,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/cemetery_bg.jpg
+    - assets/images/cemetery_welcome.png
+    - assets/images/grave_sample.png
+    - assets/images/portrait_sample.png

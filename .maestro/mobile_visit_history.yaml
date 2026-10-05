@@ -1,0 +1,14 @@
+appId: com.example.capstoneProject
+---
+- launchApp:
+    clearState: true
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "Find a Grave"
+- tapOn: "Pedro Dela Cruz\nBlock 12 · Lot 45 · Grave 3"
+- tapOn: "RECORD VISIT"
+- tapOn: "Back"
+- tapOn:
+    point: "10%,95%"
+- tapOn: "My Visits"
+- assertVisible: "My Visits History"
+- assertVisible: "(?s).*Pedro Dela Cruz.*Visited.*"

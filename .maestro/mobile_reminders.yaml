@@ -1,0 +1,10 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "Reminders"
+- assertVisible: "(?s).*Annual Fee.*Due.*Pending.*"
+- tapOn:
+    point: "89%,81%"
+- tapOn: "Notifications"
+- assertVisible: "(?s).*Welcome to Smart Cemetery.*Visit the office.*"

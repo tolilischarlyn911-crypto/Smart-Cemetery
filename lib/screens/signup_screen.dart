@@ -22,7 +22,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleSignUp() async {
+    if (_isLoading) return;
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
@@ -71,6 +80,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _nameController,
                   hintText: 'Full Name',
                   prefixIcon: Icons.person_outline,
+                  textInputAction: TextInputAction.next,
                   validator: (v) => v != null && v.trim().isNotEmpty
                       ? null
                       : 'Please enter your name',
@@ -80,6 +90,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _emailController,
                   hintText: 'Email Address',
                   prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   validator: (v) =>
                       v != null && v.contains('@') ? null : 'Invalid Email',
                 ),
@@ -89,6 +101,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   hintText: 'Password',
                   prefixIcon: Icons.lock_outline,
                   isPassword: true,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _handleSignUp(),
                   validator: (v) =>
                       v != null && v.length >= 6 ? null : 'Min 6 characters',
                 ),
