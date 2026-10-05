@@ -37,7 +37,7 @@ void main() {
     expect(find.text('Portrait, tomb, and gallery'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Use exact grave coordinates'), findsOneWidget);
+    expect(find.textContaining('Place the grave pin on the map'), findsOneWidget);
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
     expect(find.text('Portrait, tomb, and gallery'), findsOneWidget);
@@ -94,7 +94,7 @@ void main() {
     );
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Use exact grave coordinates'), findsOneWidget);
+    expect(find.textContaining('Place the grave pin on the map'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -8,6 +8,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/paste_text_button.dart';
 import 'main_navigation_wrapper.dart';
 import 'signup_screen.dart';
 
@@ -190,17 +191,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.email_outlined),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      suffixIcon: PasteTextButton(
+                        controller: _emailController,
+                        label: 'email',
+                      ),
                       hintText: 'Email',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) {
                       if (!_isLoading) {
@@ -209,17 +216,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PasteTextButton(
+                            controller: _passwordController,
+                            label: 'password',
+                          ),
+                          IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Show password'
+                                : 'Hide password',
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                       hintText: 'Password',
                       border: const OutlineInputBorder(),

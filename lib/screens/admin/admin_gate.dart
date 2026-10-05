@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/cemetery_store.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/paste_text_button.dart';
 import 'admin_shell.dart';
 
 class AdminGate extends StatelessWidget {
@@ -228,19 +229,30 @@ class _AdminLoginState extends State<AdminLogin> {
                         const SizedBox(height: 24),
                         TextField(
                           controller: email,
-                          decoration: const InputDecoration(
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: InputDecoration(
                             labelText: 'Email',
-                            border: OutlineInputBorder(),
+                            suffixIcon: PasteTextButton(
+                              controller: email,
+                              label: 'email',
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
                         ),
                         const SizedBox(height: 12),
                         TextField(
                           controller: password,
                           obscureText: true,
+                          autofillHints: const [AutofillHints.password],
                           onSubmitted: (_) => _signIn(),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Password',
-                            border: OutlineInputBorder(),
+                            suffixIcon: PasteTextButton(
+                              controller: password,
+                              label: 'password',
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
                         ),
                         Align(

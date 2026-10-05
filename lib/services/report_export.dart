@@ -55,6 +55,7 @@ String buildReportCsv(OperationsReport report, CemeteryStore store) {
         'Priority',
         'Status',
         'Requested by ID',
+        'Assigned to ID',
       ],
       for (final request in store.requests)
         [
@@ -66,6 +67,7 @@ String buildReportCsv(OperationsReport report, CemeteryStore store) {
           request.priority,
           request.status,
           request.requestedBy,
+          request.assignedTo ?? '',
         ],
     ],
     OperationsReport.payments => <List<String>>[

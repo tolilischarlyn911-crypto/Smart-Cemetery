@@ -140,6 +140,8 @@ class MaintenanceRequest {
   final String status;
   final String priority;
   final String? photoUrl;
+  final String? assignedTo;
+  final String? assigneeName;
 
   const MaintenanceRequest({
     required this.id,
@@ -151,6 +153,8 @@ class MaintenanceRequest {
     this.status = 'Pending',
     this.priority = 'Medium',
     this.photoUrl,
+    this.assignedTo,
+    this.assigneeName,
   });
 
   MaintenanceRequest copyWith({String? status, String? priority}) =>
@@ -164,6 +168,23 @@ class MaintenanceRequest {
         status: status ?? this.status,
         priority: priority ?? this.priority,
         photoUrl: photoUrl,
+        assignedTo: assignedTo,
+        assigneeName: assigneeName,
+      );
+
+  MaintenanceRequest withAssignee(String? userId, String? name) =>
+      MaintenanceRequest(
+        id: id,
+        graveId: graveId,
+        issue: issue,
+        description: description,
+        requestedBy: requestedBy,
+        createdAt: createdAt,
+        status: status,
+        priority: priority,
+        photoUrl: photoUrl,
+        assignedTo: userId,
+        assigneeName: name,
       );
 
   factory MaintenanceRequest.fromJson(Map<String, dynamic> json) =>
@@ -179,6 +200,8 @@ class MaintenanceRequest {
         status: json['status'] as String? ?? 'Pending',
         priority: json['priority'] as String? ?? 'Medium',
         photoUrl: json['photoUrl'] as String?,
+        assignedTo: json['assignedTo'] as String?,
+        assigneeName: json['assigneeName'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -191,6 +214,33 @@ class MaintenanceRequest {
     'status': status,
     'priority': priority,
     'photoUrl': photoUrl,
+    'assignedTo': assignedTo,
+    'assigneeName': assigneeName,
+  };
+}
+
+class PaymentAttachment {
+  final String name;
+  final String mimeType;
+  final String source;
+
+  const PaymentAttachment({
+    required this.name,
+    required this.mimeType,
+    required this.source,
+  });
+
+  factory PaymentAttachment.fromJson(Map<String, dynamic> json) =>
+      PaymentAttachment(
+        name: json['name'] as String? ?? 'Supporting file',
+        mimeType: json['mimeType'] as String? ?? 'application/octet-stream',
+        source: json['source'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'mimeType': mimeType,
+    'source': source,
   };
 }
 
@@ -204,6 +254,7 @@ class PaymentRecord {
   final String status;
   final String? ownerId;
   final DateTime? dueDate;
+  final List<PaymentAttachment> attachments;
 
   const PaymentRecord({
     required this.id,
@@ -215,6 +266,7 @@ class PaymentRecord {
     this.status = 'Pending',
     this.ownerId,
     this.dueDate,
+    this.attachments = const [],
   });
 
   PaymentRecord copyWith({String? status}) => PaymentRecord(
@@ -227,6 +279,7 @@ class PaymentRecord {
     status: status ?? this.status,
     ownerId: ownerId,
     dueDate: dueDate,
+    attachments: attachments,
   );
 
   factory PaymentRecord.fromJson(Map<String, dynamic> json) => PaymentRecord(
@@ -239,6 +292,13 @@ class PaymentRecord {
     status: json['status'] as String? ?? 'Pending',
     ownerId: json['ownerId'] as String?,
     dueDate: DateTime.tryParse(json['dueDate'] as String? ?? ''),
+    attachments: (json['attachments'] as List? ?? const [])
+        .map(
+          (entry) => PaymentAttachment.fromJson(
+            Map<String, dynamic>.from(entry as Map),
+          ),
+        )
+        .toList(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -251,6 +311,9 @@ class PaymentRecord {
     'status': status,
     'ownerId': ownerId,
     'dueDate': dueDate?.toIso8601String(),
+    'attachments': attachments
+        .map((attachment) => attachment.toJson())
+        .toList(),
   };
 }
 

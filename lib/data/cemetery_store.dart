@@ -641,6 +641,26 @@ class CemeteryStore extends ChangeNotifier {
     await _save('maintenance', id, requests[index].toJson());
   }
 
+  Future<void> assignRequest(String id, String? userId) async {
+    final index = requests.indexWhere((request) => request.id == id);
+    if (index < 0) throw StateError('Maintenance request was not found.');
+    final assignee = users.where((user) => user['id'] == userId).firstOrNull;
+    if (userId != null && assignee == null) {
+      throw ArgumentError('Choose a registered user.');
+    }
+    final name = assignee == null
+        ? null
+        : '${assignee['name'] ?? assignee['email'] ?? userId}';
+    final updated = requests[index].withAssignee(userId, name);
+    if (_db != null) {
+      await _save('maintenance', id, updated.toJson());
+      return;
+    }
+    requests[index] = updated;
+    notifyListeners();
+    await _save('maintenance', id, updated.toJson());
+  }
+
   Future<void> savePayment(PaymentRecord payment) async {
     if (!graves.any((grave) => grave.id == payment.graveId)) {
       throw ArgumentError('Choose an existing grave or plot.');

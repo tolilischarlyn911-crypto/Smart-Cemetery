@@ -9,6 +9,8 @@
     "smoke:role-ui": "node admin_role_ui_smoke.cjs",
     "smoke:reset": "node password_reset_smoke.cjs",
     "smoke:plot-move": "node plot_move_smoke.cjs",
+    "smoke:new-admin-features": "node new_admin_features_smoke.cjs",
+    "smoke:payment-attachment": "node payment_attachment_smoke.cjs",
     "demo:request-progress": "node set_demo_request_progress.cjs"
   },
   "devDependencies": {

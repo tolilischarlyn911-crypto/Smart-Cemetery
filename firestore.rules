@@ -19,8 +19,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow list: if isAdmin();
-      allow create: if signedIn() && request.auth.uid == userId &&
-        request.resource.data.role == 'visitor';
+      allow create: if (signedIn() && request.auth.uid == userId &&
+        request.resource.data.role == 'visitor') ||
+        (isAdmin() && request.resource.data.role == 'staff');
       allow update: if isAdmin() &&
         (request.resource.data.role == 'visitor' ||
          request.resource.data.role == 'staff' ||
@@ -62,7 +63,8 @@ service cloud.firestore {
 
     match /maintenance/{requestId} {
       allow create: if signedIn() &&
-        request.resource.data.requestedBy == request.auth.uid;
+        request.resource.data.requestedBy == request.auth.uid &&
+        !request.resource.data.keys().hasAny(['assignedTo', 'assigneeName']);
       allow get, list: if isOperator() ||
         (signedIn() && resource.data.requestedBy == request.auth.uid);
       allow update: if isAdmin() ||

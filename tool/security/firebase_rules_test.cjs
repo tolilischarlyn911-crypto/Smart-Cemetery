@@ -81,6 +81,8 @@ async function main() {
     await assertFails(setDoc(doc(visitor, 'users/fake-admin'), { role: 'admin' }));
     await assertFails(setDoc(doc(newUser, 'users/new-user'), { role: 'admin' }));
     await assertFails(setDoc(doc(newUser, 'users/new-staff'), { role: 'staff' }));
+    await assertSucceeds(setDoc(doc(admin, 'users/created-staff'), { role: 'staff', name: 'Created Staff' }));
+    await assertFails(setDoc(doc(staff, 'users/unauthorized-staff'), { role: 'staff' }));
     await assertSucceeds(setDoc(doc(newUser, 'users/new-user'), { role: 'visitor' }));
     await assertFails(updateDoc(doc(admin, 'users/admin'), { role: 'visitor' }));
     await assertSucceeds(updateDoc(doc(admin, 'users/other'), { role: 'admin' }));
@@ -134,13 +136,17 @@ async function main() {
     await assertSucceeds(getDocs(collection(staff, 'maintenance')));
     await assertFails(getDoc(doc(anonymous, 'maintenance/request-1')));
     await assertFails(setDoc(doc(visitor, 'maintenance/spoofed'), { requestedBy: 'stranger' }));
+    await assertFails(setDoc(doc(visitor, 'maintenance/self-assigned'), { requestedBy: 'visitor', assignedTo: 'visitor' }));
     await assertSucceeds(setDoc(doc(visitor, 'maintenance/new'), { requestedBy: 'visitor' }));
     await assertFails(updateDoc(doc(visitor, 'maintenance/request-1'), { status: 'Completed' }));
     await assertSucceeds(updateDoc(doc(staff, 'maintenance/request-1'), { status: 'Completed' }));
     await assertFails(updateDoc(doc(staff, 'maintenance/request-1'), { requestedBy: 'staff' }));
+    await assertFails(updateDoc(doc(staff, 'maintenance/request-1'), { assignedTo: 'staff' }));
     await assertSucceeds(updateDoc(doc(admin, 'maintenance/request-1'), {
       status: 'In Progress',
       priority: 'High',
+      assignedTo: 'staff',
+      assigneeName: 'Staff',
     }));
     await assertSucceeds(getDocs(query(
       collection(visitor, 'maintenance'),
@@ -178,13 +184,23 @@ async function main() {
     await assertSucceeds(staffStorage.ref('maintenance/visitor/request-1').getMetadata());
     await assertFails(strangerStorage.ref('profiles/visitor/avatar').put(png, metadata));
     await assertSucceeds(visitorStorage.ref('profiles/visitor/avatar').put(png, metadata));
+    const paymentDocument = 'payment-documents/payment-1/receipt.pdf';
+    const pdf = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]);
+    await assertFails(visitorStorage.ref(paymentDocument).put(pdf, { contentType: 'application/pdf' }));
+    await assertFails(staffStorage.ref(paymentDocument).put(pdf, { contentType: 'application/pdf' }));
+    await assertFails(adminStorage.ref(paymentDocument).put(pdf, { contentType: 'text/plain' }));
+    await assertSucceeds(adminStorage.ref(paymentDocument).put(pdf, { contentType: 'application/pdf' }));
+    await assertFails(visitorStorage.ref(paymentDocument).getMetadata());
+    await assertFails(staffStorage.ref(paymentDocument).getMetadata());
+    await assertSucceeds(adminStorage.ref(paymentDocument).getMetadata());
+    await assertSucceeds(adminStorage.ref(paymentDocument).delete());
     console.log('Firestore and Storage role and visitor access rules passed.');
   } finally {
     await env.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
       for (const path of [
         'users/admin', 'users/visitor', 'users/staff', 'users/other',
-        'users/stranger', 'users/new-user', 'graves/grave-1',
+        'users/stranger', 'users/new-user', 'users/created-staff', 'graves/grave-1',
         'graveLocations/fixture-key', 'graveLocations/new-key', 'graves/claimed',
         'graveLocations/race-key', 'graves/race-a', 'graves/race-b',
         'announcements/security-test-welcome', 'settings/cemetery',

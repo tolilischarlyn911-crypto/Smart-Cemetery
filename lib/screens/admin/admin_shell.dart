@@ -1,13 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:typed_data';
+
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+
 import 'package:file_saver/file_saver.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:latlong2/latlong.dart' as geo;
 
 import '../../data/cemetery_store.dart';
 import '../../models/cemetery_models.dart';
@@ -15,8 +19,11 @@ import '../../services/backup_service.dart';
 import '../../services/burial_date_validation.dart';
 import '../../services/demand_forecast.dart';
 import '../../services/photo_service.dart';
+import '../../services/payment_document_service.dart';
 import '../../services/report_export.dart';
+import '../../services/staff_account_service.dart';
 import '../map_navigation_screen.dart';
+import 'grave_pin_picker.dart';
 
 class AdminShell extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -981,9 +988,9 @@ class _AdminShellState extends State<AdminShell> {
                                     child: Text(
                                       plotIdentityError!,
                                       style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.error,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error,
                                       ),
                                     ),
                                   ),
@@ -1041,9 +1048,9 @@ class _AdminShellState extends State<AdminShell> {
                                     child: Text(
                                       dateOrderError!,
                                       style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.error,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error,
                                       ),
                                     ),
                                   ),
@@ -1165,9 +1172,9 @@ class _AdminShellState extends State<AdminShell> {
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     'Memorial gallery',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
                                   ),
                                 ),
                                 Align(
@@ -1250,19 +1257,100 @@ class _AdminShellState extends State<AdminShell> {
                             child: Column(
                               children: [
                                 const Text(
-                                  'Use exact grave coordinates. You can also place this pin in Map Management.',
+                                  'Place the grave pin on the map. Visitors will use this point for directions.',
                                 ),
                                 const SizedBox(height: 12),
-                                _coordinateField(
-                                  latitude,
-                                  longitude,
-                                  latitude: true,
+                                Text(
+                                  latitude.text.isEmpty ||
+                                          longitude.text.isEmpty
+                                      ? 'No grave pin selected yet.'
+                                      : 'Selected pin: ${latitude.text}, ${longitude.text}',
                                 ),
-                                _coordinateField(
-                                  longitude,
-                                  latitude,
-                                  latitude: false,
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final store = CemeteryStore.instance;
+                                    final mapCenter = store.mapCenter;
+                                    final existingPoint =
+                                        grave?.hasValidCoordinates == true
+                                        ? geo.LatLng(
+                                            grave!.latitude!,
+                                            grave.longitude!,
+                                          )
+                                        : null;
+                                    final firstPinned = store.graves
+                                        .where(
+                                          (record) =>
+                                              record.hasValidCoordinates,
+                                        )
+                                        .firstOrNull;
+                                    final center =
+                                        existingPoint ??
+                                        (mapCenter == null
+                                            ? null
+                                            : geo.LatLng(
+                                                mapCenter.latitude,
+                                                mapCenter.longitude,
+                                              )) ??
+                                        (firstPinned == null
+                                            ? null
+                                            : geo.LatLng(
+                                                firstPinned.latitude!,
+                                                firstPinned.longitude!,
+                                              ));
+                                    if (center == null) {
+                                      ScaffoldMessenger.of(dialogContext)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Set the cemetery map center in System Settings first.',
+                                              ),
+                                            ),
+                                          );
+                                      return;
+                                    }
+                                    final chosen = await GravePinPicker.pick(
+                                      dialogContext,
+                                      title: 'Place grave pin',
+                                      center: center,
+                                      initialPoint:
+                                          latitude.text.isNotEmpty &&
+                                              longitude.text.isNotEmpty
+                                          ? geo.LatLng(
+                                              double.parse(latitude.text),
+                                              double.parse(longitude.text),
+                                            )
+                                          : null,
+                                    );
+                                    if (chosen == null ||
+                                        !dialogContext.mounted) {
+                                      return;
+                                    }
+                                    refresh(() {
+                                      latitude.text = chosen.latitude
+                                          .toStringAsFixed(6);
+                                      longitude.text = chosen.longitude
+                                          .toStringAsFixed(6);
+                                    });
+                                  },
+                                  icon: const Icon(
+                                    Icons.add_location_alt_outlined,
+                                  ),
+                                  label: Text(
+                                    latitude.text.isEmpty
+                                        ? 'PLACE PIN ON MAP'
+                                        : 'MOVE PIN ON MAP',
+                                  ),
                                 ),
+                                if (latitude.text.isNotEmpty &&
+                                    longitude.text.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () => refresh(() {
+                                      latitude.clear();
+                                      longitude.clear();
+                                    }),
+                                    child: const Text('Remove pin'),
+                                  ),
                               ],
                             ),
                           ),
@@ -1361,8 +1449,7 @@ class _AdminShellState extends State<AdminShell> {
                     if (duplicate != null) {
                       refresh(() {
                         activeSection = 0;
-                        plotIdentityError =
-                            'A record already exists for this block, lot, and grave number.';
+                        plotIdentityError = 'A record already exists for this block, lot, and grave number.';
                       });
                       if (sectionScroll.hasClients) sectionScroll.jumpTo(0);
                       return;
@@ -1510,46 +1597,6 @@ class _AdminShellState extends State<AdminShell> {
     ),
   );
 
-  Widget _coordinateField(
-    TextEditingController controller,
-    TextEditingController other, {
-    required bool latitude,
-    bool required = false,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: TextFormField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-        signed: true,
-      ),
-      decoration: InputDecoration(
-        labelText: latitude
-            ? (required ? 'Latitude' : 'Latitude (optional)')
-            : (required ? 'Longitude' : 'Longitude (optional)'),
-        border: const OutlineInputBorder(),
-      ),
-      validator: (value) {
-        final text = value?.trim() ?? '';
-        if (text.isEmpty) {
-          if (required) return 'Enter a coordinate';
-          return other.text.trim().isEmpty ? null : 'Enter both coordinates';
-        }
-        final parsed = double.tryParse(text);
-        final limit = latitude ? 90 : 180;
-        if (parsed == null ||
-            !parsed.isFinite ||
-            parsed < -limit ||
-            parsed > limit) {
-          return latitude
-              ? 'Latitude must be between -90 and 90'
-              : 'Longitude must be between -180 and 180';
-        }
-        return null;
-      },
-    ),
-  );
-
   Widget _field(
     TextEditingController controller,
     String label, {
@@ -1627,7 +1674,8 @@ class _AdminShellState extends State<AdminShell> {
                             '${request.description}\n'
                             '${request.status} · ${request.priority} priority · '
                             '${_dateLabel(request.createdAt)} · '
-                            '${_accountName(store, request.requestedBy)}',
+                            '${_accountName(store, request.requestedBy)}\n'
+                            '${request.assignedTo == null ? 'Unassigned' : 'Assigned to ${request.assigneeName ?? _accountName(store, request.assignedTo!)}'}',
                           ),
                           isThreeLine: true,
                           onTap: request.photoUrl == null
@@ -1635,8 +1683,9 @@ class _AdminShellState extends State<AdminShell> {
                               : () => _showPhoto(request.photoUrl!),
                           trailing: PopupMenuButton<String>(
                             tooltip: 'Manage maintenance request',
-                            onSelected: (action) =>
-                                _updateMaintenanceRequest(request, action),
+                            onSelected: (action) => action == 'assign'
+                                ? _assignMaintenanceRequest(request)
+                                : _updateMaintenanceRequest(request, action),
                             itemBuilder: (_) => [
                               const PopupMenuItem<String>(
                                 enabled: false,
@@ -1671,6 +1720,13 @@ class _AdminShellState extends State<AdminShell> {
                                     request.priority == priority,
                                   ),
                                 ),
+                              if (!_isStaff) ...[
+                                const PopupMenuDivider(),
+                                const PopupMenuItem<String>(
+                                  value: 'assign',
+                                  child: Text('Assign to user'),
+                                ),
+                              ],
                             ],
                             child: const Icon(Icons.more_vert),
                           ),
@@ -1715,6 +1771,91 @@ class _AdminShellState extends State<AdminShell> {
         );
       }
     }
+  }
+
+  Future<void> _assignMaintenanceRequest(MaintenanceRequest request) async {
+    final store = CemeteryStore.instance;
+    final search = TextEditingController();
+    await _showOwnedDialog<void>(
+      (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) {
+          final query = search.text.trim().toLowerCase();
+          final accounts = store.users.where((account) {
+            if (query.isEmpty) return true;
+            return _accountChoiceLabel(account).toLowerCase().contains(query) ||
+                '${account['role'] ?? ''}'.toLowerCase().contains(query);
+          }).toList();
+          Future<void> choose(String? userId) async {
+            try {
+              await store.assignRequest(request.id, userId);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } catch (error) {
+              if (dialogContext.mounted) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text('Could not assign request: $error')),
+                );
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Assign maintenance request'),
+            content: SizedBox(
+              width: 420,
+              height: math.min(MediaQuery.sizeOf(context).height * 0.55, 430),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: search,
+                    onChanged: (_) => refresh(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Search registered users',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        if (query.isEmpty)
+                          ListTile(
+                            leading: const Icon(Icons.person_off_outlined),
+                            title: const Text('Unassigned'),
+                            trailing: request.assignedTo == null
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () => choose(null),
+                          ),
+                        for (final account in accounts)
+                          ListTile(
+                            leading: const Icon(Icons.person_outline),
+                            title: Text(_accountChoiceLabel(account)),
+                            subtitle: Text('${account['role'] ?? 'visitor'}'),
+                            trailing: request.assignedTo == account['id']
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () => choose('${account['id']}'),
+                          ),
+                        if (accounts.isEmpty)
+                          const ListTile(title: Text('No users match.')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    search.dispose();
   }
 
   void _showPhoto(String source) {
@@ -1777,15 +1918,27 @@ class _AdminShellState extends State<AdminShell> {
                   subtitle: Text(
                     '₱${payment.amount.toStringAsFixed(2)} · ${payment.status}'
                     '${payment.dueDate == null ? '' : ' · Due ${_dateLabel(payment.dueDate!)}'}'
-                    '${store.graveById(payment.graveId) == null ? '' : '\n${store.graveById(payment.graveId)!.location}'}',
+                    '${store.graveById(payment.graveId) == null ? '' : '\n${store.graveById(payment.graveId)!.location}'}'
+                    '${payment.attachments.isEmpty ? '' : '\n${payment.attachments.length} supporting file${payment.attachments.length == 1 ? '' : 's'}'}',
                   ),
                   trailing: PopupMenuButton<String>(
                     tooltip: 'Manage payment',
-                    onSelected: (action) => action == 'Edit'
-                        ? _editPayment(payment)
-                        : _changePaymentStatus(payment, action),
+                    onSelected: (action) {
+                      if (action == 'Edit') {
+                        _editPayment(payment);
+                      } else if (action == 'Documents') {
+                        _showPaymentDocuments(payment);
+                      } else {
+                        _changePaymentStatus(payment, action);
+                      }
+                    },
                     itemBuilder: (_) => [
                       const PopupMenuItem(value: 'Edit', child: Text('Edit')),
+                      if (payment.attachments.isNotEmpty)
+                        const PopupMenuItem(
+                          value: 'Documents',
+                          child: Text('Supporting documents'),
+                        ),
                       ...['Pending', 'Paid', 'Overdue'].map(
                         (status) => PopupMenuItem(
                           value: status,
@@ -1850,167 +2003,260 @@ class _AdminShellState extends State<AdminShell> {
     );
     String? ownerId = existing?.ownerId;
     String? graveId = existing?.graveId;
+    final attachments = [...?existing?.attachments];
+    final pendingFiles = <XFile>[];
     final form = GlobalKey<FormState>();
     await _showOwnedDialog<void>(
-      (dialogContext) => AlertDialog(
-        title: Text(existing == null ? 'Add payment' : 'Edit payment'),
-        content: SizedBox(
-          width: 380,
-          child: Form(
-            key: form,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _field(payer, 'Payer', required: true),
-                  _field(type, 'Type', required: true),
-                  TextFormField(
-                    controller: amount,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount (₱)',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final parsed = double.tryParse(value ?? '');
-                      return parsed == null || !parsed.isFinite || parsed <= 0
-                          ? 'Enter a positive amount'
-                          : null;
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: graveId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Grave / plot',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      for (final grave in store.graves)
-                        DropdownMenuItem(
-                          value: grave.id,
-                          child: Text(
-                            grave.name.isEmpty
-                                ? grave.location
-                                : '${grave.name} · ${grave.location}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      if (graveId != null && store.graveById(graveId!) == null)
-                        DropdownMenuItem(
-                          value: graveId,
-                          child: Text('Missing plot · $graveId'),
-                        ),
-                    ],
-                    onChanged: (value) => graveId = value,
-                    validator: (value) =>
-                        value == null ? 'Select a grave or plot' : null,
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: ownerId ?? '',
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Visitor account for reminders',
-                      helperText: 'Only linked accounts see this due date.',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('No account linked'),
+      (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => AlertDialog(
+          title: Text(existing == null ? 'Add payment' : 'Edit payment'),
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: form,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _field(payer, 'Payer', required: true),
+                    _field(type, 'Type', required: true),
+                    TextFormField(
+                      controller: amount,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (₱)',
+                        border: OutlineInputBorder(),
                       ),
-                      for (final user in store.users.where(
-                        (user) => user['role'] == 'visitor',
-                      ))
-                        DropdownMenuItem(
-                          value: '${user['id']}',
-                          child: Text(
-                            _accountChoiceLabel(user),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      if (ownerId != null &&
-                          !store.users.any(
-                            (user) =>
-                                user['id'] == ownerId &&
-                                user['role'] == 'visitor',
-                          ))
-                        DropdownMenuItem(
-                          value: ownerId,
-                          child: Text('Linked account $ownerId'),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        ownerId = value == null || value.isEmpty ? null : value,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: dueDate,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Due date',
-                      suffixIcon: Icon(Icons.calendar_month),
-                      border: OutlineInputBorder(),
+                      validator: (value) {
+                        final parsed = double.tryParse(value ?? '');
+                        return parsed == null || !parsed.isFinite || parsed <= 0
+                            ? 'Enter a positive amount'
+                            : null;
+                      },
                     ),
-                    onTap: () async {
-                      final selected = await showDatePicker(
-                        context: dialogContext,
-                        initialDate:
-                            DateTime.tryParse(dueDate.text) ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (selected != null) dueDate.text = _dateLabel(selected);
-                    },
-                    validator: (value) => DateTime.tryParse(value ?? '') == null
-                        ? 'Choose a due date'
-                        : null,
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: graveId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Grave / plot',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final grave in store.graves)
+                          DropdownMenuItem(
+                            value: grave.id,
+                            child: Text(
+                              grave.name.isEmpty
+                                  ? grave.location
+                                  : '${grave.name} · ${grave.location}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        if (graveId != null &&
+                            store.graveById(graveId!) == null)
+                          DropdownMenuItem(
+                            value: graveId,
+                            child: Text('Missing plot · $graveId'),
+                          ),
+                      ],
+                      onChanged: (value) => graveId = value,
+                      validator: (value) =>
+                          value == null ? 'Select a grave or plot' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: ownerId ?? '',
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Visitor account for reminders',
+                        helperText: 'Only linked accounts see this due date.',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('No account linked'),
+                        ),
+                        for (final user in store.users.where(
+                          (user) => user['role'] == 'visitor',
+                        ))
+                          DropdownMenuItem(
+                            value: '${user['id']}',
+                            child: Text(
+                              _accountChoiceLabel(user),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        if (ownerId != null &&
+                            !store.users.any(
+                              (user) =>
+                                  user['id'] == ownerId &&
+                                  user['role'] == 'visitor',
+                            ))
+                          DropdownMenuItem(
+                            value: ownerId,
+                            child: Text('Linked account $ownerId'),
+                          ),
+                      ],
+                      onChanged: (value) => ownerId =
+                          value == null || value.isEmpty ? null : value,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: dueDate,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Due date',
+                        suffixIcon: Icon(Icons.calendar_month),
+                        border: OutlineInputBorder(),
+                      ),
+                      onTap: () async {
+                        final selected = await showDatePicker(
+                          context: dialogContext,
+                          initialDate:
+                              DateTime.tryParse(dueDate.text) ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (selected != null) {
+                          dueDate.text = _dateLabel(selected);
+                        }
+                      },
+                      validator: (value) =>
+                          DateTime.tryParse(value ?? '') == null
+                          ? 'Choose a due date'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Supporting documents',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Receipts, screenshots, PDF, or Word files.'),
+                    ),
+                    for (final attachment in attachments)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.attach_file),
+                        title: Text(
+                          attachment.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _downloadPaymentDocument(attachment),
+                        trailing: IconButton(
+                          tooltip: 'Remove ${attachment.name}',
+                          icon: const Icon(Icons.close),
+                          onPressed: () =>
+                              refresh(() => attachments.remove(attachment)),
+                        ),
+                      ),
+                    for (final file in pendingFiles)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.upload_file_outlined),
+                        title: Text(file.name, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(
+                          tooltip: 'Remove ${file.name}',
+                          icon: const Icon(Icons.close),
+                          onPressed: () =>
+                              refresh(() => pendingFiles.remove(file)),
+                        ),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final selected = await PaymentDocumentService.pick();
+                          if (selected.isNotEmpty) {
+                            refresh(() => pendingFiles.addAll(selected));
+                          }
+                        } catch (error) {
+                          if (dialogContext.mounted) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text('Could not choose files: $error'),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.attach_file),
+                      label: const Text('ADD SUPPORTING FILES'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!form.currentState!.validate()) return;
-              try {
-                await CemeteryStore.instance.savePayment(
-                  PaymentRecord(
-                    id:
-                        existing?.id ??
-                        DateTime.now().microsecondsSinceEpoch.toString(),
-                    payer: payer.text.trim(),
-                    graveId: graveId!,
-                    type: type.text.trim(),
-                    amount: double.parse(amount.text),
-                    date: existing?.date ?? DateTime.now(),
-                    dueDate: DateTime.parse(dueDate.text),
-                    ownerId: ownerId,
-                    status: existing?.status ?? 'Pending',
-                  ),
-                );
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-              } catch (error) {
-                if (dialogContext.mounted) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text('Could not save payment: $error')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (!form.currentState!.validate()) return;
+                final id =
+                    existing?.id ??
+                    DateTime.now().microsecondsSinceEpoch.toString();
+                final uploaded = <PaymentAttachment>[];
+                try {
+                  for (final file in pendingFiles) {
+                    uploaded.add(
+                      await PaymentDocumentService.save(file, paymentId: id),
+                    );
+                  }
+                  await CemeteryStore.instance.savePayment(
+                    PaymentRecord(
+                      id: id,
+                      payer: payer.text.trim(),
+                      graveId: graveId!,
+                      type: type.text.trim(),
+                      amount: double.parse(amount.text),
+                      date: existing?.date ?? DateTime.now(),
+                      dueDate: DateTime.parse(dueDate.text),
+                      ownerId: ownerId,
+                      status: existing?.status ?? 'Pending',
+                      attachments: [...attachments, ...uploaded],
+                    ),
                   );
+                  for (final removed
+                      in existing?.attachments ?? const <PaymentAttachment>[]) {
+                    if (!attachments.contains(removed)) {
+                      try {
+                        await PaymentDocumentService.delete(removed);
+                      } catch (_) {
+                        // The saved payment no longer references this file.
+                      }
+                    }
+                  }
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
+                } catch (error) {
+                  for (final attachment in uploaded) {
+                    try {
+                      await PaymentDocumentService.delete(attachment);
+                    } catch (_) {
+                      // A later storage cleanup can remove this unused file.
+                    }
+                  }
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(content: Text('Could not save payment: $error')),
+                    );
+                  }
                 }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
     payer.dispose();
@@ -2031,6 +2277,46 @@ class _AdminShellState extends State<AdminShell> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not update payment: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showPaymentDocuments(PaymentRecord payment) =>
+      _showOwnedDialog<void>(
+        (dialogContext) => AlertDialog(
+          title: const Text('Supporting documents'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final attachment in payment.attachments)
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: Text(attachment.name),
+                    trailing: const Icon(Icons.download_outlined),
+                    onTap: () => _downloadPaymentDocument(attachment),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _downloadPaymentDocument(PaymentAttachment attachment) async {
+    try {
+      await PaymentDocumentService.download(attachment);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not download file: $error')),
         );
       }
     }
@@ -2484,6 +2770,15 @@ class _AdminShellState extends State<AdminShell> {
           store.isDemo ? 'Preview accounts' : 'Registered accounts',
           Column(
             children: [
+              if (!store.isDemo)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _createStaffLogin,
+                    icon: const Icon(Icons.person_add_outlined),
+                    label: const Text('Create staff login'),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: TextField(
@@ -2644,7 +2939,7 @@ class _AdminShellState extends State<AdminShell> {
                 child: FilledButton.icon(
                   onPressed: () => _editStaff(),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add staff entry'),
+                  label: const Text('Add staff contact'),
                 ),
               ),
             ],
@@ -2707,6 +3002,128 @@ class _AdminShellState extends State<AdminShell> {
     }
   }
 
+  Future<void> _createStaffLogin() async {
+    final name = TextEditingController();
+    final email = TextEditingController();
+    final form = GlobalKey<FormState>();
+    var creating = false;
+    await _showOwnedDialog<void>(
+      (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => AlertDialog(
+          title: const Text('Create staff login'),
+          content: SizedBox(
+            width: 400,
+            child: Form(
+              key: form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _field(name, 'Name', required: true),
+                  TextFormField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final address = value?.trim() ?? '';
+                      return address.contains('@') && address.contains('.')
+                          ? null
+                          : 'Enter a valid email address';
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'A unique temporary password will be shown once after the account is created.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: creating ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: creating
+                  ? null
+                  : () async {
+                      if (!form.currentState!.validate()) return;
+                      refresh(() => creating = true);
+                      final password = StaffAccountService.temporaryPassword();
+                      final newEmail = email.text.trim();
+                      try {
+                        await StaffAccountService.create(
+                          name: name.text.trim(),
+                          email: newEmail,
+                          password: password,
+                        );
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        if (mounted) {
+                          await showDialog<void>(
+                            context: this.context,
+                            builder: (successContext) => AlertDialog(
+                              title: const Text('Staff login created'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(newEmail),
+                                  const SizedBox(height: 12),
+                                  const Text('Temporary password'),
+                                  SelectableText(password),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Share this password with the staff member. It will not be shown again.',
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton.icon(
+                                  onPressed: () => Clipboard.setData(
+                                    ClipboardData(text: password),
+                                  ),
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('Copy password'),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pop(successContext),
+                                  child: const Text('Done'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      } catch (error) {
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Could not create staff login: $error',
+                              ),
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (dialogContext.mounted) {
+                          refresh(() => creating = false);
+                        }
+                      }
+                    },
+              child: Text(creating ? 'Creating…' : 'Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    email.dispose();
+  }
+
   Future<void> _editStaff([Map<String, dynamic>? existing]) async {
     final name = TextEditingController(text: '${existing?['name'] ?? ''}');
     final email = TextEditingController(text: '${existing?['email'] ?? ''}');
@@ -2714,7 +3131,9 @@ class _AdminShellState extends State<AdminShell> {
     final form = GlobalKey<FormState>();
     await _showOwnedDialog<void>(
       (dialogContext) => AlertDialog(
-        title: Text(existing == null ? 'Add staff entry' : 'Edit staff entry'),
+        title: Text(
+          existing == null ? 'Add staff contact' : 'Edit staff contact',
+        ),
         content: SizedBox(
           width: 380,
           child: Form(
@@ -2897,6 +3316,47 @@ class _AdminShellState extends State<AdminShell> {
                 icon: const Icon(Icons.edit_location_alt_outlined),
                 label: const Text('Set map center'),
               ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      _panel(
+        'Grave map markers',
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose how occupied, reserved, and available graves appear on the map.',
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'tombstone',
+                  label: Text('Tombstone'),
+                  icon: Icon(Icons.church_outlined),
+                ),
+                ButtonSegment(
+                  value: 'pin',
+                  label: Text('Map pin'),
+                  icon: Icon(Icons.location_pin),
+                ),
+              ],
+              selected: {'${store.settings['gravePinStyle'] ?? 'tombstone'}'},
+              onSelectionChanged: (values) async {
+                try {
+                  await store.saveSettings({'gravePinStyle': values.first});
+                } catch (error) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not change grave markers: $error'),
+                      ),
+                    );
+                  }
+                }
+              },
             ),
           ],
         ),
@@ -3158,74 +3618,38 @@ class _AdminShellState extends State<AdminShell> {
 
   Future<void> _editMapCenter() async {
     final store = CemeteryStore.instance;
-    final latitude = TextEditingController(
-      text: '${store.settings['mapCenterLatitude'] ?? ''}',
+    final configured = store.mapCenter;
+    final firstPinned = store.graves
+        .where((grave) => grave.hasValidCoordinates)
+        .firstOrNull;
+    final current = configured == null
+        ? null
+        : geo.LatLng(configured.latitude, configured.longitude);
+    final center =
+        current ??
+        (firstPinned == null
+            ? const geo.LatLng(14.5995, 120.9842)
+            : geo.LatLng(firstPinned.latitude!, firstPinned.longitude!));
+    final chosen = await GravePinPicker.pick(
+      context,
+      title: 'Set cemetery map center',
+      center: center,
+      initialPoint: current,
+      initialZoom: current == null && firstPinned == null ? 12 : 18,
     );
-    final longitude = TextEditingController(
-      text: '${store.settings['mapCenterLongitude'] ?? ''}',
-    );
-    final form = GlobalKey<FormState>();
-    await _showOwnedDialog<void>(
-      (dialogContext) => AlertDialog(
-        title: const Text('Cemetery map center'),
-        content: SizedBox(
-          width: 400,
-          child: Form(
-            key: form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Enter a verified point inside the cemetery to initialize Map Management before any grave pins exist.',
-                ),
-                const SizedBox(height: 16),
-                _coordinateField(
-                  latitude,
-                  longitude,
-                  latitude: true,
-                  required: true,
-                ),
-                _coordinateField(
-                  longitude,
-                  latitude,
-                  latitude: false,
-                  required: true,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!form.currentState!.validate()) return;
-              try {
-                await store.saveSettings({
-                  'mapCenterLatitude': double.parse(latitude.text.trim()),
-                  'mapCenterLongitude': double.parse(longitude.text.trim()),
-                });
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              } catch (error) {
-                if (dialogContext.mounted) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text('Could not save map center: $error'),
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    latitude.dispose();
-    longitude.dispose();
+    if (chosen == null || !mounted) return;
+    try {
+      await store.saveSettings({
+        'mapCenterLatitude': chosen.latitude,
+        'mapCenterLongitude': chosen.longitude,
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save map center: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _editAnnouncement([Map<String, dynamic>? existing]) async {

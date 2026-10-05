@@ -12,6 +12,7 @@ import '../services/firebase_setup.dart';
 import '../services/google_maps_directions.dart';
 import '../services/grave_share.dart';
 import '../services/photo_service.dart';
+import '../widgets/grave_map_marker.dart';
 import 'grave_details_screen.dart';
 
 class MapNavigationScreen extends StatefulWidget {
@@ -36,6 +37,8 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
   LatLng? _devicePosition;
   LatLng? _placement;
   bool _locating = false;
+  String? _requestedMarkerStyle;
+  Map<String, google.BitmapDescriptor> _tombstoneIcons = {};
 
   bool get _usingSampleMap =>
       CemeteryStore.instance.isDemo || FirebaseSetup.useEmulators;
@@ -62,6 +65,47 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
   LatLng? _point(Grave? grave) => grave?.hasValidCoordinates != true
       ? null
       : LatLng(grave!.latitude!, grave.longitude!);
+
+  Color _statusColor(String status) => status == 'occupied'
+      ? Colors.red
+      : status == 'available'
+      ? Colors.green
+      : Colors.amber.shade800;
+
+  void _ensureNativeMarkerIcons(String style) {
+    if (!_usingGoogleMap ||
+        style != 'tombstone' ||
+        _requestedMarkerStyle == style) {
+      return;
+    }
+    _requestedMarkerStyle = style;
+    Future.wait([
+      GraveMapMarker.png(Colors.red),
+      GraveMapMarker.png(Colors.green),
+      GraveMapMarker.png(Colors.amber.shade800),
+    ]).then((images) {
+      if (!mounted || _requestedMarkerStyle != style) return;
+      setState(() {
+        _tombstoneIcons = {
+          'occupied': google.BitmapDescriptor.bytes(
+            images[0],
+            width: 40,
+            height: 44,
+          ),
+          'available': google.BitmapDescriptor.bytes(
+            images[1],
+            width: 40,
+            height: 44,
+          ),
+          'reserved': google.BitmapDescriptor.bytes(
+            images[2],
+            width: 40,
+            height: 44,
+          ),
+        };
+      });
+    });
+  }
 
   Future<void> _locate() async {
     setState(() => _locating = true);
@@ -346,6 +390,8 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
+        final markerStyle = '${store.settings['gravePinStyle'] ?? 'tombstone'}';
+        _ensureNativeMarkerIcons(markerStyle);
         Grave? selectedGrave = _selectedId == null
             ? null
             : store.graveById(_selectedId!);
@@ -470,13 +516,17 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                                 snippet: grave.location,
                               ),
                               icon:
-                                  google.BitmapDescriptor.defaultMarkerWithHue(
-                                    selected?.id == grave.id
-                                        ? google.BitmapDescriptor.hueRed
-                                        : grave.status == 'available'
-                                        ? google.BitmapDescriptor.hueGreen
-                                        : google.BitmapDescriptor.hueOrange,
-                                  ),
+                                  markerStyle == 'tombstone' &&
+                                      _tombstoneIcons.containsKey(grave.status)
+                                  ? _tombstoneIcons[grave.status]!
+                                  : google
+                                        .BitmapDescriptor.defaultMarkerWithHue(
+                                      grave.status == 'occupied'
+                                          ? google.BitmapDescriptor.hueRed
+                                          : grave.status == 'available'
+                                          ? google.BitmapDescriptor.hueGreen
+                                          : google.BitmapDescriptor.hueOrange,
+                                    ),
                               onTap: () => _selectGrave(grave),
                             ),
                           if (origin != null)
@@ -535,15 +585,20 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                                         ? grave.location
                                         : grave.name,
                                     onPressed: () => _selectGrave(grave),
-                                    icon: Icon(
-                                      Icons.location_pin,
-                                      size: selected?.id == grave.id ? 44 : 36,
-                                      color: selected?.id == grave.id
-                                          ? Colors.red
-                                          : grave.status == 'available'
-                                          ? Colors.green
-                                          : Colors.amber.shade800,
-                                    ),
+                                    icon: markerStyle == 'tombstone'
+                                        ? GraveMapMarker(
+                                            color: _statusColor(grave.status),
+                                            size: selected?.id == grave.id
+                                                ? 42
+                                                : 36,
+                                          )
+                                        : Icon(
+                                            Icons.location_pin,
+                                            size: selected?.id == grave.id
+                                                ? 44
+                                                : 36,
+                                            color: _statusColor(grave.status),
+                                          ),
                                   ),
                                 ),
                               if (origin != null)
@@ -703,6 +758,34 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
                         ),
                         if (widget.adminMode) ...[
                           const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            children: [
+                              _mapLegendItem(
+                                'Occupied',
+                                Colors.red,
+                                markerStyle,
+                              ),
+                              _mapLegendItem(
+                                'Reserved',
+                                Colors.amber.shade800,
+                                markerStyle,
+                              ),
+                              _mapLegendItem(
+                                'Available',
+                                Colors.green,
+                                markerStyle,
+                              ),
+                              _mapLegendItem(
+                                'New pin',
+                                Colors.purple,
+                                markerStyle,
+                              ),
+                              _mapLegendItem('You', Colors.blue, markerStyle),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           OutlinedButton.icon(
                             onPressed: () => _chooseGrave(store),
                             icon: const Icon(Icons.search),
@@ -808,6 +891,23 @@ class _MapNavigationScreenState extends State<MapNavigationScreen> {
       errorBuilder: (_, _, _) => const Icon(Icons.broken_image_outlined),
     );
   }
+
+  Widget _mapLegendItem(String label, Color color, String markerStyle) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (markerStyle == 'tombstone' &&
+          (label == 'Occupied' || label == 'Reserved' || label == 'Available'))
+        GraveMapMarker(color: color, size: 17)
+      else
+        Icon(
+          label == 'You' ? Icons.my_location : Icons.location_pin,
+          size: 18,
+          color: color,
+        ),
+      const SizedBox(width: 2),
+      Text(label, style: const TextStyle(fontSize: 12)),
+    ],
+  );
 
   Widget _mapButton(IconData icon, String tooltip, VoidCallback? onPressed) =>
       Material(
