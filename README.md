@@ -16,7 +16,7 @@ Both apps are built from this **one Flutter project**. An Android or iOS run ope
 
 ### 1. Install the development tools
 
-1. Install the Flutter SDK and ensure `flutter` is on your `PATH`. This project requires **Dart 3.9 or newer, below 4.0**; use a Flutter release that includes a compatible Dart SDK.
+1. Install the Flutter SDK and ensure `flutter` is on your `PATH`. This project requires **Dart 3.13 or newer, below 4.0**; use a Flutter release that includes a compatible Dart SDK.
 2. For Android, install Android Studio, the Android SDK, an emulator or a USB-connected Android phone, and a JDK compatible with your installed Android Gradle tooling. For iOS, use a Mac with Xcode, its command-line tools, and an iOS simulator or signed device. The Xcode project targets **iOS 15.0 or later**.
 3. For web, install Chrome or another browser supported by `flutter run -d`. An internet connection is needed to download Flutter packages and display map tiles.
 4. For the optional connected local demo, install Node.js/npm and a JDK supported by the Firebase Emulator Suite. The Firebase CLI is supplied by `tool/security/package.json` after `npm ci --prefix tool/security`.
@@ -48,7 +48,7 @@ Use the **same Firebase project ID** for the web and mobile builds so their reco
 1. Create a Firebase project. Register a **Web app** for the admin build and the relevant **Android/iOS apps** for the visitor build. The current development identifiers are `com.example.capstone_project` in [Android Gradle](android/app/build.gradle.kts) and `com.example.capstoneProject` in the [Xcode project](ios/Runner.xcodeproj/project.pbxproj); replace those example identifiers before registering/releasing your own app. Each registered platform has its own App ID and may have its own API key. Copy the values from each platform's Firebase app configuration. The Web SDK `appId` is not the Android/iOS `appId`.
 2. In Firebase **Authentication → Sign-in method**, enable **Email/Password**. For the web app, ensure its hosting domain is in **Authentication → Settings → Authorized domains**. `localhost` may need to be added for local development, depending on your Firebase project settings. Visitor registration is available in the mobile app; the web app offers sign-in for existing admin/staff accounts.
 3. Create a **Cloud Firestore** database in the Firebase console. Select your intended region. Deploy this repository's [Firestore rules](firestore.rules) before entering real data; console defaults may not match the app's roles.
-4. For the full feature set, enable **Cloud Storage for Firebase** and choose a bucket. Deploy [Storage rules](storage.rules) for profile, grave, and maintenance photos. Cloud photo upload fails when `FIREBASE_STORAGE_BUCKET` is omitted. Firestore stores image URLs and other records; Storage holds uploaded image files. If you are deliberately running without photo upload, deploy only `firestore:rules` in the next step.
+4. For the full feature set, enable **Cloud Storage for Firebase** and choose a bucket. Deploy [Storage rules](storage.rules) for profile, grave, and maintenance photos plus payment supporting documents. Cloud uploads fail when `FIREBASE_STORAGE_BUCKET` is omitted. Firestore stores records and file references; Storage holds uploaded files. If you are deliberately running without uploads, deploy only `firestore:rules` in the next step.
 5. Install and sign in to the Firebase CLI, then deploy the checked-in rules from the repository root. Replace `YOUR_PROJECT_ID` with your project ID and inspect the target project before deployment:
 
    ```sh
@@ -96,7 +96,7 @@ npm ci --prefix tool/security
 npm run emulators --prefix tool/security
 ```
 
-After Auth (port `9098`), Firestore (`8188`), and Storage (`9198`) are ready, seed the example accounts and records in another terminal:
+After Auth (port `9098`), Firestore (`8188`), and Storage (`9198`) are ready, seed the example accounts and records in another terminal. Keep all three emulators in the **same suite**: Storage rules check Firestore roles.
 
 ```sh
 npm run seed --prefix tool/security
@@ -109,7 +109,13 @@ Run the mobile app with an emulator define file. The iOS example is ready to use
 flutter run -d <ios-simulator-id> --dart-define-from-file=tool/security/ios_emulator_defines.json
 ```
 
-For an Android emulator, make a local copy of `tool/security/ios_emulator_defines.json`, give it a syntactically valid nonproduction Android Firebase App ID, and add `"FIREBASE_EMULATOR_HOST": "10.0.2.2"`; pass that file with `--dart-define-from-file`. `10.0.2.2` is the Android emulator's route to your computer. For an iOS simulator or Chrome on the same computer, the default host is `127.0.0.1`. A physical phone needs your computer's reachable LAN IP instead, plus firewall/network access to all three emulator ports. These local credentials work only while the emulators are running:
+For an Android emulator, use the checked-in Android demo configuration:
+
+```sh
+flutter run -d <android-emulator-id> --dart-define-from-file=tool/security/android_emulator_defines.json
+```
+
+It uses `10.0.2.2`, the Android emulator's route to your computer. For an iOS simulator or Chrome on the same computer, the default host is `127.0.0.1`. A physical phone needs your computer's reachable LAN IP instead, plus firewall/network access to all three emulator ports. These local credentials work only while the emulators are running:
 
 | Role | Email | Password |
 | --- | --- | --- |
@@ -125,6 +131,7 @@ Use the admin/staff accounts in the web app and the visitor account on mobile. T
 - **Grave coordinates:** In web **System Settings**, set the actual cemetery map center on the map. In **Grave Management** or **Map Management**, tap or drag a pin to the verified grave location. The admin map legend identifies occupied, reserved, and available plots, the proposed pin, and the current location. Visitor markers show occupied graves with valid coordinates. Until this is done, routing to real graves is unavailable or misleading; preview coordinates are illustrative.
 - **Walking directions:** **Start Navigation** opens a Google Maps URL using the device's location as the origin. It requires location permission, internet access, and an available browser or Google Maps app. No Google Maps API key is used for this URL handoff. Google Maps can route only on paths it knows about; check the cemetery's internal paths on site.
 - **Camera and photos:** QR scanning needs camera access. Taking or choosing photos needs camera/photo-library access. The Android manifest and iOS `Info.plist` contain the current permission declarations. Cloud photos also need the Storage bucket and deployed rules. Uploaded images must be JPEG, PNG, or WebP and under the rule's 2 MiB limit after app compression.
+- **Payment documents:** Admins can attach PDF, DOC, DOCX, JPEG, PNG, or WebP files to payment records. Connected uploads require Storage and the deployed rules; each file must be under 10 MiB. Only administrators can read payment files through the app. Local preview accepts files under 500 KiB because it stores them in the browser's local data.
 - **Reminders:** Visitors can opt into **local phone notifications** for account-linked unpaid payments with due dates. The app schedules alerts for seven days before and on the due date at 9 a.m. after it sees the payment record. Grant notification permission on the phone. Web browsers do not get these scheduled alerts; the app does not send remote push notifications or collect payments automatically.
 
 ### Common setup problems
@@ -135,6 +142,7 @@ Use the admin/staff accounts in the web app and the visitor account on mobile. T
 | Web user signs in but cannot open administration | The Authentication UID has a matching `users/<UID>` document with exact role `admin` or `staff`; Firestore rules are deployed. |
 | Permission denied when viewing/saving records | Deploy the matching rules to the intended project; confirm the signed-in user's role and ownership fields. |
 | Photos fail to upload | Storage is enabled, `FIREBASE_STORAGE_BUCKET` matches the actual bucket, Storage rules are deployed, and the image is a supported type/size. |
+| Payment receipt or document fails to upload | Keep Auth, Firestore, and Storage emulators in one suite for local testing; in a live project, deploy `storage.rules`, confirm the admin role, bucket, file type, and 10 MiB limit. |
 | Emulator connection refused | Start/seed the emulators, check ports `9098`, `8188`, `9198`, and use `10.0.2.2` from an Android emulator. |
 | Map tiles are blank or pins are missing | Check internet/tile-provider access, the configured map center, and each grave's coordinates. |
 | Directions or QR scanning do not work | Grant location/camera permission and test on a device with a browser or Google Maps app. |
@@ -161,7 +169,7 @@ The web target opens an **Admin Preview** entry screen; choose **Open Admin Prev
 
 The app reads Firebase settings from Dart defines: `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`, and optionally `FIREBASE_AUTH_DOMAIN` and `FIREBASE_STORAGE_BUCKET`. Enable Email/Password in Firebase Authentication and deploy [firestore.rules](firestore.rules). To save grave, maintenance, and profile photos in cloud mode, configure `FIREBASE_STORAGE_BUCKET`, enable Firebase Storage, and deploy [storage.rules](storage.rules). Never ship administrator access based on UI checks alone.
 
-An administrator account must have a `users/{uid}` document with `role: admin`, created through the Firebase console or a privileged backend. Mobile sign-up creates `role: visitor` and cannot grant admin access. The web admin requires this role before loading records. User Management can change the roles of registered accounts after confirmation; staff directory entries are contact records and do not create sign-in accounts. Preview role changes demonstrate the UI but do not restrict access to the local preview.
+An administrator account must have a `users/{uid}` document with `role: admin`, created through the Firebase console or a privileged backend. Mobile sign-up creates `role: visitor` and cannot grant admin access. The web admin requires this role before loading records. User Management can change the roles of registered accounts after confirmation. **Create staff login** creates an Auth user and a staff role document, then shows a unique temporary password once; share it securely with that user. **Add staff contact** is a directory entry and does not create a sign-in account. Preview role changes demonstrate the UI but do not restrict access to the local preview.
 
 Both connected login pages offer **Forgot password?** after an email address is entered. Firebase Authentication sends the reset email; the app shows the same confirmation whether or not the address has an account. Configure the password reset email template and sender in the production Firebase project before launch.
 
@@ -206,7 +214,7 @@ To check registration and the first login against the local emulators, sign out 
 
 The mobile marker map can use the Google Maps Flutter SDK when configured as described below. Without a key, mobile uses the existing OpenStreetMap map; web Map Management also uses OpenStreetMap. The visitor map opens with the first occupied grave that has valid coordinates selected; visitors see occupied-grave markers only. **Start Navigation** opens Google Maps walking directions to the selected grave, using the device's current location as the route origin. It can launch Google Maps navigation or a route preview, depending on device location and Google Maps availability. The app does not draw an invented route line. Google Maps can only route along paths present in its map data; it cannot promise a walkable route inside a cemetery whose internal paths are unmapped.
 
-For a real deployment, set a verified cemetery map center in System Settings, then add the exact `latitude` and `longitude` for each grave through Grave Management or Map Management. Map Management can place the first pin even when no graves have coordinates: filter plots by block or those needing a pin, select a grave or plot, tap its location on the map, review the proposed coordinates, and save the pin. The grave editor also accepts coordinates directly and checks that both values are in range. Preview records use sample coordinates and show a warning before opening Google Maps. The Google Maps URL route needs no app API key.
+For a real deployment, set a verified cemetery map center in System Settings by tapping the map or dragging its marker. In Grave Management, use the **Map** step to tap or drag each grave pin into place. Map Management can place the first pin even when no graves have coordinates: filter plots by block or those needing a pin, select a grave or plot, tap its location on the map, review the proposed coordinates, and save the pin. System Settings also offers tombstone and standard pin styles; the Map Management legend labels occupied, reserved, available, proposed, and current-location markers. Preview records use sample coordinates and show a warning before opening Google Maps. The Google Maps URL route needs no app API key.
 
 To enable the **embedded Google map on Android or iOS**, create a Google Maps Platform project with billing, enable Maps SDK for Android and Maps SDK for iOS, and use separate platform-restricted API keys. For Android, set `GOOGLE_MAPS_API_KEY` as an environment variable or Gradle property when building. For iOS, copy `ios/Flutter/GoogleMaps.xcconfig.example` to `ios/Flutter/GoogleMaps.xcconfig` and put the iOS key there; the real file is ignored by Git. Then build or run Flutter with `--dart-define=GOOGLE_MAPS_ENABLED=true`. Enable this switch only when the native key for that platform is configured. These keys load map tiles and markers in the app; **Start Navigation** still opens Google Maps for the route. A key alone cannot verify the location of a grave or add missing internal cemetery paths. The web admin map remains on OpenStreetMap. For production OpenStreetMap tile traffic, set `MAP_TILE_URL` to a provider you are authorized to use, and keep attribution visible. If using the public OSM tile server, follow its [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 
