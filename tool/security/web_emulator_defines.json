@@ -1,0 +1,8 @@
+{
+  "FIREBASE_API_KEY": "emulator-api-key",
+  "FIREBASE_APP_ID": "1:123:web:demo",
+  "FIREBASE_MESSAGING_SENDER_ID": "123",
+  "FIREBASE_PROJECT_ID": "demo-smart-cemetery",
+  "FIREBASE_STORAGE_BUCKET": "demo-smart-cemetery.appspot.com",
+  "FIREBASE_USE_EMULATORS": "true"
+}

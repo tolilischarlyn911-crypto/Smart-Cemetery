@@ -7,6 +7,9 @@ class AuthTextField extends StatelessWidget {
   final bool isPassword;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const AuthTextField({
     super.key,
@@ -16,6 +19,9 @@ class AuthTextField extends StatelessWidget {
     this.isPassword = false,
     this.suffixIcon,
     this.validator,
+    this.keyboardType,
+    this.textInputAction,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -24,6 +30,9 @@ class AuthTextField extends StatelessWidget {
       controller: controller,
       obscureText: isPassword,
       validator: validator,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,

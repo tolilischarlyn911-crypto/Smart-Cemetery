@@ -1,0 +1,11 @@
+appId: com.example.capstoneProject
+---
+- launchApp:
+    clearState: true
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "Reminders"
+- assertVisible: "(?s).*Phone payment alerts.*"
+- assertVisible: "(?s).*Annual Fee.*Due.*Pending.*"
+- tapOn: "ENABLE"
+- tapOn: "Reminders"
+- assertVisible: "TURN OFF"

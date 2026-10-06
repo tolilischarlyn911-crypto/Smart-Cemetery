@@ -1,0 +1,7 @@
+appId: com.example.capstoneProject
+---
+- stopApp
+- launchApp
+- assertVisible: "Demo Visitor"
+- tapOn: "Requests\nTab 4 of 5"
+- assertVisible: "(?s).*In Progress.*High priority.*"

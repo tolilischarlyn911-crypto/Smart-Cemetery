@@ -1,0 +1,19 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "SIGN UP"
+- assertVisible: "Create Account"
+- tapOn: "Full Name"
+- inputText: "Signup Verify"
+- tapOn: "Email Address"
+- inputText: ${SIGNUP_EMAIL}
+- tapOn: "Password"
+- inputText: "Visitor123!"
+- hideKeyboard
+- assertVisible: "Welcome Back"
+- tapOn: "Email"
+- inputText: ${SIGNUP_EMAIL}
+- tapOn: "Password"
+- inputText: "Visitor123!"
+- hideKeyboard
+- assertVisible: "Signup Verify"

@@ -1,0 +1,6 @@
+appId: com.example.capstone_project
+---
+- launchApp
+- assertVisible: "Demo Visitor"
+- tapOn: "Reminders"
+- assertVisible: "(?s).*Annual Fee.*Pending.*"

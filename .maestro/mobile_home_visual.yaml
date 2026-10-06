@@ -1,0 +1,8 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- assertVisible: "Find a Grave"
+- assertVisible: "Reminders"
+- assertVisible: "Cemetery Guidelines"
+- assertVisible: "Emergency Contacts"

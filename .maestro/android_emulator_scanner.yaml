@@ -1,0 +1,10 @@
+appId: com.example.capstone_project
+---
+- launchApp
+- tapOn: "Scan QR Code"
+- assertVisible: "Align the QR code within the frame to scan"
+- tapOn: "SCAN FROM PHOTO"
+- tapOn:
+    point: "17%,58%"
+- assertVisible: "Grave Details"
+- assertVisible: "Pedro Dela Cruz"

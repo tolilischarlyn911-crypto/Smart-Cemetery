@@ -1,0 +1,12 @@
+appId: com.example.capstoneProject
+---
+- launchApp
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn: "Announcements"
+- assertVisible: "(?s).*Welcome to Smart Cemetery.*Visit the office.*"
+- tapOn: "Close"
+- tapOn: "Cemetery Guidelines"
+- assertVisible: "(?s).*Please keep the grounds clean.*"
+- tapOn: "Close"
+- tapOn: "Emergency Contacts"
+- assertVisible: "(?s).*Contact local emergency services.*"

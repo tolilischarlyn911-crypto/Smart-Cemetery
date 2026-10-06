@@ -1,0 +1,10 @@
+url: http://127.0.0.1:8085
+---
+- launchApp
+- assertVisible: "Dashboard"
+- tapOn: "Grave Management"
+- assertVisible: "Add record"
+- tapOn: "Payments & Leases"
+- assertVisible: "Add payment"
+- tapOn: "System Settings"
+- assertVisible: "Visitor information"

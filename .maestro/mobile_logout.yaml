@@ -1,0 +1,11 @@
+appId: com.example.capstoneProject
+---
+- launchApp:
+    clearState: true
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- tapOn:
+    point: "90%,95%"
+- tapOn: "LOGOUT"
+- assertVisible: "EXPLORE LOCAL PREVIEW"
+- tapOn: "EXPLORE LOCAL PREVIEW"
+- assertVisible: "Preview Visitor"

@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import 'auth_error.dart';
@@ -9,10 +10,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Login user using Firebase Authentication.
-  Future<UserModel> login({
-    required String email,
-    required String password,
-  }) {
+  Future<UserModel> login({required String email, required String password}) {
     return _guard('login', () async {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
@@ -60,6 +58,12 @@ class AuthService {
       if (user != null) {
         await user.updateDisplayName(name.trim());
         await user.reload();
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': name.trim(),
+          'email': email.trim(),
+          'role': 'visitor',
+        });
+        await _auth.signOut();
       }
     });
   }
@@ -69,6 +73,18 @@ class AuthService {
     return _guard('logout', () => _auth.signOut());
   }
 
+  Future<void> sendPasswordReset(String email) {
+    return _guard('password reset', () async {
+      try {
+        await _auth.sendPasswordResetEmail(email: email.trim());
+      } on FirebaseAuthException catch (error) {
+        // Older projects may still return this before email enumeration
+        // protection is enabled. Keep the response the same either way.
+        if (error.code != 'user-not-found') rethrow;
+      }
+    });
+  }
+
   /// Get the currently signed-in Firebase user.
   User? get currentUser => _auth.currentUser;
 
@@ -76,16 +92,10 @@ class AuthService {
   bool get isLoggedIn => _auth.currentUser != null;
 
   /// Handles Firebase errors and converts them into readable messages.
-  Future<T> _guard<T>(
-    String operation,
-    Future<T> Function() action,
-  ) async {
+  Future<T> _guard<T>(String operation, Future<T> Function() action) async {
     final options = _auth.app.options;
 
-    if (isPlaceholderFirebaseConfig(
-      options.apiKey,
-      options.projectId,
-    )) {
+    if (isPlaceholderFirebaseConfig(options.apiKey, options.projectId)) {
       developer.log(
         '$operation blocked: $firebaseNotConfiguredMessage',
         name: 'AuthService',
@@ -98,10 +108,7 @@ class AuthService {
     try {
       return await action();
     } on FirebaseAuthException catch (e, stackTrace) {
-      final message = describeAuthError(
-        e.code,
-        e.message,
-      );
+      final message = describeAuthError(e.code, e.message);
 
       developer.log(
         '$operation failed: [${e.code}] ${e.message} -> $message',
@@ -121,9 +128,7 @@ class AuthService {
         level: 1000,
       );
 
-      throw Exception(
-        'Unexpected error during $operation: $e',
-      );
+      throw Exception('Unexpected error during $operation: $e');
     }
   }
 }

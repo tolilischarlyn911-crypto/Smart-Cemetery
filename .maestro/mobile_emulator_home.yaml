@@ -1,0 +1,7 @@
+appId: com.example.capstoneProject
+---
+- stopApp
+- launchApp
+- assertVisible: "Demo Visitor"
+- assertVisible: "Find a Grave"
+- assertVisible: "Cemetery\nGuidelines"
