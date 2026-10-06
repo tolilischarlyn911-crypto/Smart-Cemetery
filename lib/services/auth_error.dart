@@ -6,10 +6,13 @@ const firebaseNotConfiguredMessage =
 
 /// True when [apiKey] / [projectId] are placeholders.
 bool isPlaceholderFirebaseConfig(String apiKey, String projectId) =>
-    apiKey == placeholderApiKey ||
-    apiKey.isEmpty ||
-    apiKey.contains('dummy') ||
-    projectId.contains('dummy');
+    [apiKey, projectId].any((value) {
+      final normalized = value.toLowerCase();
+      return normalized.isEmpty ||
+          normalized.contains('dummy') ||
+          normalized.contains('placeholder') ||
+          normalized.startsWith('your_');
+    });
 
 /// Converts Firebase Auth error codes into user-friendly messages.
 String describeAuthError(String code, String? message) {
@@ -36,7 +39,8 @@ String describeAuthError(String code, String? message) {
       human = 'Password is too weak. Use at least 6 characters.';
 
     case 'operation-not-allowed':
-      human = 'Email/password sign-in is disabled for this Firebase project. '
+      human =
+          'Email/password sign-in is disabled for this Firebase project. '
           'Enable it in Firebase console > Authentication > Sign-in method.';
 
     case 'user-not-found':
@@ -55,7 +59,8 @@ String describeAuthError(String code, String? message) {
       human = 'Network error. Check your internet connection and try again.';
 
     case 'configuration-not-found':
-      human = 'Firebase Authentication is not set up for this project. '
+      human =
+          'Firebase Authentication is not set up for this project. '
           'Enable it in the Firebase console.';
 
     default:

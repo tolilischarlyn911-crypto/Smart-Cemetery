@@ -79,6 +79,8 @@ Create one JSON file **outside this repository** for each platform, for example 
 
 `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, and `FIREBASE_PROJECT_ID` are required to switch on Firebase mode. `FIREBASE_AUTH_DOMAIN` is used by Firebase web auth; `FIREBASE_STORAGE_BUCKET` is required for cloud photo upload. Copy the **actual** bucket name shown by Firebase, since its suffix can vary. Use the Web app's values in the web file and the Android/iOS app's values in separate mobile files. These are client configuration values, not an administrator password or service account key; do not put private credentials in these files. The sample files in `tool/security/` target local emulators only and cannot connect to your live project.
 
+The JSON block above is a template: every `YOUR_...` value must be replaced with the value from your Firebase project's app settings. If any required value is missing or still an example, the app shows a setup screen naming the fields to fix. Web and mobile use different Firebase App IDs, so do not reuse the web file for Android or iOS. After editing a define file, stop and rerun Flutter so the compiled settings update. To run without Firebase, omit all `FIREBASE_*` defines and use local preview.
+
 ```sh
 flutter run -d chrome --dart-define-from-file=../smart-cemetery-web.json
 flutter run -d <android-device-id> --dart-define-from-file=../smart-cemetery-android.json

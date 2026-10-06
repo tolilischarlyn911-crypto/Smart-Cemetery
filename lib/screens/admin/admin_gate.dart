@@ -14,8 +14,18 @@ class AdminGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    late final Stream<User?> authState;
+    try {
+      authState = FirebaseAuth.instance.authStateChanges();
+    } catch (error) {
+      return _message(
+        'Could not start Firebase Authentication. Check that this web build '
+        'uses the Web app values from your Firebase project, then restart. '
+        'Details: $error',
+      );
+    }
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: authState,
       builder: (context, auth) {
         if (auth.hasError) {
           return _message('Authentication failed: ${auth.error}');
@@ -162,6 +172,14 @@ class _AdminLoginState extends State<AdminLogin> {
       );
     } on FirebaseAuthException catch (exception) {
       if (mounted) setState(() => error = exception.message ?? exception.code);
+    } catch (exception) {
+      if (mounted) {
+        setState(
+          () => error =
+              'Could not sign in. Check the Firebase Web app settings and '
+              'Email/Password sign-in method. Details: $exception',
+        );
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
