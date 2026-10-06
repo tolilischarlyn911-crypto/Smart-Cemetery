@@ -20,13 +20,27 @@ class FirebaseSetup {
     defaultValue: '127.0.0.1',
   );
 
-  static bool get configured =>
-      apiKey.isNotEmpty &&
-      appId.isNotEmpty &&
-      senderId.isNotEmpty &&
+  static bool get configured => hasOptions && configurationError == null;
+
+  static bool get hasOptions =>
+      apiKey.isNotEmpty ||
+      appId.isNotEmpty ||
+      senderId.isNotEmpty ||
       projectId.isNotEmpty;
 
+  static String? get configurationError => firebaseConfigurationError(
+    apiKey: apiKey,
+    appId: appId,
+    senderId: senderId,
+    projectId: projectId,
+  );
+
+  static bool initialized = false;
+
   static Future<void> initialize() async {
+    if (configurationError case final error?) {
+      throw StateError(error);
+    }
     if (!configured) return;
     if (useEmulators && !projectId.startsWith('demo-')) {
       throw StateError('Firebase emulator mode requires a demo project ID.');
@@ -48,5 +62,43 @@ class FirebaseSetup {
         await FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9198);
       }
     }
+    initialized = true;
   }
+}
+
+String? firebaseConfigurationError({
+  required String apiKey,
+  required String appId,
+  required String senderId,
+  required String projectId,
+}) {
+  final values = {
+    'FIREBASE_API_KEY': apiKey,
+    'FIREBASE_APP_ID': appId,
+    'FIREBASE_MESSAGING_SENDER_ID': senderId,
+    'FIREBASE_PROJECT_ID': projectId,
+  };
+  if (values.values.every((value) => value.isEmpty)) return null;
+  final missing = values.entries
+      .where((entry) => entry.value.isEmpty)
+      .map((entry) => entry.key)
+      .toList();
+  final examples = values.entries
+      .where((entry) {
+        final value = entry.value.toLowerCase();
+        return value.contains('dummy') ||
+            value.contains('placeholder') ||
+            value.startsWith('your_');
+      })
+      .map((entry) => entry.key)
+      .toList();
+  if (missing.isEmpty && examples.isEmpty) return null;
+  final problems = [
+    if (missing.isNotEmpty) 'Missing: ${missing.join(', ')}.',
+    if (examples.isNotEmpty) 'Replace example values: ${examples.join(', ')}.',
+  ];
+  return 'Firebase setup required. ${problems.join(' ')} '
+      'Use the Firebase Web app values for Chrome, or the matching Android/iOS '
+      'app values for mobile. Pass them with --dart-define-from-file and restart. '
+      'To use local preview, remove the FIREBASE_* values.';
 }

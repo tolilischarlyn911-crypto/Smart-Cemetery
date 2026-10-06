@@ -10,6 +10,11 @@ void main() {
       isTrue,
     );
     expect(isPlaceholderFirebaseConfig('AIzaReal', 'smart-cemetery'), isFalse);
+    expect(
+      isPlaceholderFirebaseConfig('YOUR_PLATFORM_API_KEY', 'project'),
+      isTrue,
+    );
+    expect(isPlaceholderFirebaseConfig('AIzaReal', 'YOUR_PROJECT_ID'), isTrue);
   });
 
   test('bad API key on web (generic "Error" message) is explained', () {

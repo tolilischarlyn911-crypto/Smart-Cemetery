@@ -5,9 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import 'auth_error.dart';
+import 'firebase_setup.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
   /// Login user using Firebase Authentication.
   Future<UserModel> login({required String email, required String password}) {
@@ -93,9 +94,7 @@ class AuthService {
 
   /// Handles Firebase errors and converts them into readable messages.
   Future<T> _guard<T>(String operation, Future<T> Function() action) async {
-    final options = _auth.app.options;
-
-    if (isPlaceholderFirebaseConfig(options.apiKey, options.projectId)) {
+    if (!FirebaseSetup.initialized) {
       developer.log(
         '$operation blocked: $firebaseNotConfiguredMessage',
         name: 'AuthService',
